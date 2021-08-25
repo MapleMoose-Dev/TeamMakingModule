@@ -1,0 +1,235 @@
+local Sensitivity = 0
+local module = {}
+
+module.BestMatch = function(SentTbl)
+local function NumEntries(tbl)
+	local f = 0
+	for i, v in pairs(tbl) do
+		f += 1
+	end
+	return f
+end
+		
+local function shallowCopy(original)
+	local copy = {}
+	for key, value in pairs(original) do
+		copy[key] = value
+	end
+	return copy
+end		
+
+local function match(PlayerTable)
+	local NameTable = {}
+		for i,v in pairs(PlayerTable) do
+			table.insert(NameTable,i)
+		end
+		return NameTable
+	end
+	
+	local function factorial(n)
+			if (n == 0) then
+				return 1
+			else
+				return n * factorial(n - 1)
+			end
+	end
+			
+
+	
+	CreateNamesTable()
+	
+	
+
+	--Makes sure number is even
+	local x = NumEntries(PlayerTable)
+
+	local IsOdd = false
+	
+	if x % 2 ~= 0 then
+		x += 1
+		IsOdd = true
+	end	
+	
+		--Combinations
+		local Comination1 = factorial(x)
+		local Combination2 = factorial(x/2)
+		local Combination3 = factorial( (x)-(x/2) )
+		local formula = (Comination1) / (Combination2*Combination3)
+		
+		--Create Starting Table
+		local BaseTable = {}
+		for i = 1, x,1 do
+			table.insert(BaseTable,i,i)
+		end
+		
+		local TableA = {}
+		local TableB = {}
+		for i = 1, x/2,1 do
+			table.insert(TableA,i,i)
+			table.insert(TableB,i,i+x/2)
+		end
+		
+		local function Sum(Table)
+			local Num = 0
+			for i,v in pairs(Table) do
+				if (v == x and IsOdd)  then else
+					local PlrName =NameTable[v] 
+					Num += PlayerTable[PlrName]
+				end
+			end
+			return Num
+		end
+		
+		local function DifferenceFunct()
+			local Diff = math.abs(Sum(TableA) - Sum(TableB))
+			return Diff
+		end
+		
+		local function CreateTableB()
+			TableB = shallowCopy(BaseTable)
+			for i,v in pairs(TableA) do
+				table.remove(TableB,table.find(TableB,v))
+			end
+		end
+		
+		local function GetNextCombination()
+			local function IfLastIsX(PosReciprocal)
+				 if  TableA[#TableA-PosReciprocal] == x-PosReciprocal then
+					IfLastIsX(PosReciprocal + 1)
+				 else
+					TableA[#TableA-PosReciprocal] = TableA[#TableA-PosReciprocal] + 1
+					local z = 1
+					for i = (#TableA-PosReciprocal)+1 ,#TableA,1 do
+						TableA[i]  = TableA[#TableA-PosReciprocal] + z	
+						z+= 1
+					end
+				 end
+			end
+			IfLastIsX(0)
+			--TableA is Made, Make Table B
+			CreateTableB()			
+		end
+		
+		 local cont = true
+		 local Difference = DifferenceFunct()
+		 if Difference <= Sensitivity then
+			cont = false
+		end
+		
+		local Options = {}
+		while #Options < ((formula / 2) - 1) and cont do
+			table.insert(Options,{Difference,shallowCopy(TableA)})
+			GetNextCombination() 	
+			Difference = DifferenceFunct()
+			if  Difference <= Sensitivity then
+				--Found a Combination 
+				cont = false
+			end
+		end	
+-------------After cycling through all combinations-------------				
+		local function ConvertTable(tbl)
+			for i,v in pairs(tbl) do
+				if v == x and IsOdd then 
+					table.remove(tbl,table.find(tbl,v))
+				else
+					tbl[i] = NameTable[v] 
+				end
+			end
+		end
+		
+		local function Final()
+			CreateTableB()
+			ConvertTable(TableA)
+			ConvertTable(TableB)
+			return TableA,TableB
+		end
+		
+		if cont == false then
+			return Final()
+		else
+			table.insert(Options,{Difference,shallowCopy(TableA)})
+			local Lowest = math.huge
+			local LowestIndex
+			for i,v in pairs(Options) do
+				if v[1] < Lowest then
+					LowestIndex = i
+					Lowest = v[1]
+				end
+			end
+			TableA = Options[LowestIndex][2]
+			Difference = Options[LowestIndex][1]
+			return Final()
+		end
+end
+
+local function split(Table,x)
+	local TblA = shallowCopy(Table)
+	local TblB = {}
+	local cycle = 1
+	for i,v in pairs(TblA) do
+		TblB[i] = v
+		TblA[i] = nil
+		if cycle >= math.floor(x/2) then
+			break
+		else
+			cycle += 1
+		end
+	end
+	return TblA,TblB
+end
+
+local FinalGroup = {}
+local FinalPlayers = {}
+
+local function GetGroupPower(tbl)
+	local power = 0
+	for i,v in pairs(tbl) do
+		power += SentTbl[v]
+	end
+	local InsertIndex = NumEntries(FinalGroup) + 1
+	FinalGroup[tostring(InsertIndex)] = power
+	FinalPlayers[tostring(InsertIndex)] = tbl
+end
+
+local function BreakDown(OriginalTbl)
+	local x = NumEntries(OriginalTbl)
+	if x > 10 then
+		local a,b = split(OriginalTbl,x)
+		BreakDown(a)
+		BreakDown(b)
+	else
+		local a,b = match(OriginalTbl)
+		GetGroupPower(a)
+		GetGroupPower(b)
+	end
+end
+
+BreakDown(SentTbl)
+
+local a,b = match(FinalGroup)
+
+local FinalATbl = {}
+local FinalBTbl = {}
+
+local function Ungroup(tbl,tblsecond)
+	for i,v in pairs(tbl) do
+		for q,w in pairs(FinalPlayers[v]) do
+			table.insert(tblsecond,w)
+		end
+	end
+end
+
+Ungroup(a,FinalATbl)
+Ungroup(b,FinalBTbl)
+
+local function CalcPower(tbl)
+	local power = 0
+	for i,v in pairs(tbl) do
+		power += SentTbl[v]
+	end
+	return power
+end
+local Diff = math.abs( CalcPower(FinalATbl) - CalcPower(FinalBTbl) )
+return FinalATbl,FinalBTbl,Diff
+end--function BestMatch
+return module
